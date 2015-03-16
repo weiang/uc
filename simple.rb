@@ -127,6 +127,32 @@ class LessThan < Struct.new(:left, :right)
 	end
 end
 
+class Equal < Struct.new(:left, :right)
+	def to_s
+		"#{left} == #{right}"
+	end
+
+	def inspect
+		"<<#{self}>>"
+	end
+
+	def reducible?
+		true
+	end
+
+	def reduce(environment)
+		if left.reducible?
+			Equal.new(left.reduce(environment), right)
+		elsif right.reducible?
+			Equal.new(left, right.reduce(environment))
+		elsif left.value == right.value
+			Boolean.new(true)
+		else
+			Boolean.new(false)
+		end
+	end
+end
+
 class Variable < Struct.new(:name)
 	def to_s
 		name.to_s
@@ -163,7 +189,7 @@ class DoNothing
 	end
 end
 
-class Asign < Struct.new(:name, :expression)
+class Assign < Struct.new(:name, :expression)
 	def to_s
 		"#{name} = #{expression}"
 	end
@@ -178,13 +204,81 @@ class Asign < Struct.new(:name, :expression)
 
 	def reduce(environment)
 		if expression.reducible?
-			[Asign.new(name, expression.reduce(environment)), environment]
+			[Assign.new(name, expression.reduce(environment)), environment]
 		else
 			[DoNothing.new, environment.merge({name => expression})]
 		end
 	end
 end
-			
+
+class If < Struct.new(:expression, :statement1, :statement2) 
+	def to_s
+		"if (#{expression}) { #{statement1} } else { #{statement2} }"
+	end
+
+	def inspect
+		"<<#{self}>>"
+	end
+
+	def reducible?
+		true
+	end
+
+	def reduce(environment)
+		if expression.reducible?
+			[If.new(expression.reduce(environment), statement1, statement2), environment]
+		elsif expression.value == true
+			[statement1, environment]
+#			statement1.reduce(environment)
+		else
+			[statement2, environment]
+#			statement2.reduce(environment)
+		end
+	end
+end
+
+class Sequence < Struct.new(:first, :second)
+	def to_s
+		"#{first}; #{second}"
+	end
+
+	def inspect
+		"<<#{self}>>"
+	end
+
+	def reducible?
+		true
+	end
+
+	def reduce(environment)
+		case first
+		when DoNothing.new
+			[second, environment]
+		else 
+			reduced_first, reduced_environment = first.reduce(environment)
+			[Sequence.new(reduced_first, second), reduced_environment]
+		end
+	end
+end
+
+class While < Struct.new(:condition, :statement)
+	def to_s
+		"while (#{condition}) { #{statement} }"
+	end
+
+	def inspect
+		"<<#{self}>>"
+	end
+
+	def reducible?
+		true
+	end
+
+	def reduce(environment)
+		[If.new(condition, Sequence.new(statement, self), DoNothing.new), environment]
+	end
+end
+
 class Machine < Struct.new(:statement, :environment)
 	def step
 		self.statement, self.environment = statement.reduce(environment)
@@ -204,8 +298,71 @@ expression = Add.new(
 		Multiply.new(Number.new(3), Number.new(4))
 	)
 
+# If
+#Machine.new(
+#	If.new(LessThan.new(Variable.new(:x), Variable.new(:z)),
+#		   Assign.new(:y, Number.new(1)),
+#		   Assign.new(:y, Number.new(2))),
+#	{x: Number.new(4), z: Number.new(3)}
+#).run
+
+# While
 Machine.new(
-	Asign.new(:x, Add.new(Variable.new(:x), Number.new(1))), 
-	{x: Number.new(2)}
+	While.new(
+		LessThan.new(
+			Variable.new(:x), 
+			Number.new(3)
+		),
+		Sequence.new(
+			Assign.new(
+				:y, 
+				Add.new(
+					Variable.new(:y), 
+					Number.new(1)
+				)
+			),
+			Assign.new(
+				:x, 
+				Add.new(Variable.new(:x), Number.new(1))
+			)
+		)
+	),
+	{x: Number.new(0), y: Number.new(3)}
 ).run
+
+class Number
+	def evaluate(environment)
+		self
+	end
+end
+
+class Boolean
+	def evaluate(environment)
+		self
+	end
+end
+
+def Variable
+	def evaluate(environment)
+		environment[name]
+	end
+end
+
+class Add
+	def evaluate(environment)
+		Number.new(left.evaluate(environment).value + right.evaluate(environment).value)
+	end
+end
+
+class Multiply
+	def evaluate(environment)
+		Number.new(left.evaluate(environment).value * right.evaluate(environment).value)
+	end
+end
+
+class LessThan
+	def evaluate(environment)
+		Boolean.new(left.evaluate(environment).value < right.evaluate(environment).value)
+	end
+end
 
