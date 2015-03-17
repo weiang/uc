@@ -406,6 +406,73 @@ class Sequence
 	end
 end
 
+# Denotational environment
+class Number
+	def to_ruby
+		"-> e { #{value.inspect} }"
+	end
+end
+
+class Boolean 
+	def to_ruby
+		"-> e { #{value.inspect} }"
+	end
+end
+
+class Variable
+	def to_ruby
+		"-> e { e[#{name.inspect}] }"
+	end
+end
+
+class Add
+	def to_ruby
+		"-> e { (#{left.to_ruby}).call(e) + (#{right.to_ruby}).call(e) }"
+	end
+end
+
+class Multiply
+	def to_ruby
+		"-> e { (#{left.to_ruby}).call(e) * (#{right.to_ruby}).call(e) }"
+	end
+end
+
+class LessThan
+	def to_ruby
+		"-> e { (#{left.to_ruby}).call(e) < (#{right.to_ruby}).call(e) }"
+	end
+end
+
+class Assign
+	def to_ruby
+		"-> e { e.merge({ #{name.inspect} => (#{expression.to_ruby}).call(e) }) }"
+	end
+end
+
+class If
+	def to_ruby
+		"-> e { if (#{condition.to_ruby}).call(e) then (#{statement1.to_ruby}).call(e) else (#{statement2.to_ruby}).call(e) end }"
+	end
+end
+
+class DoNothing
+	def to_ruby
+		"-> e { e } "
+	end
+end
+
+class Sequence
+	def to_ruby
+		"-> e { (#{second.to_ruby}).call((#{first}).call(e)) }"
+	end
+end
+
+class While
+	def to_ruby
+		"-> e { while (#{condition.to_ruby}).call(e); e=(#{statement.to_ruby}).call(e); end; e }"
+	end
+end
+
 statement = Sequence.new(
 				Assign.new(:x, Add.new(Number.new(1), Number.new(1))),
 				Assign.new(:y, Add.new(Variable.new(:x), Number.new(3)))
@@ -418,3 +485,8 @@ statement2 = While.new(
 				Assign.new(:x, Multiply.new(Variable.new(:x), Number.new(3)))
 			 )
 statement2.evaluate({x: Number.new(1)})
+
+
+statement2.to_ruby
+pc = eval(statement2.to_ruby)
+pc.call({x: 1})
