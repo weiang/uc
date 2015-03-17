@@ -342,7 +342,7 @@ class Boolean
 	end
 end
 
-def Variable
+class Variable
 	def evaluate(environment)
 		environment[name]
 	end
@@ -366,3 +366,55 @@ class LessThan
 	end
 end
 
+class Assign
+	def evaluate(environment)
+		environment.merge({ name => expression.evaluate(environment) })
+	end
+end
+
+class DoNothing
+	def evaluate(environment)
+		environment
+	end
+end
+
+class If
+	def evaluate(environment)
+		case condition.evaluate(environment)
+		when Boolean.new(true)
+			statement1.evaluate(environment)
+		when Boolean.new(false)
+			statement2.evaluate(environment)
+		end
+	end
+end
+
+class While 
+	def evaluate(environment)
+		case condition.evaluate(environment)
+		when Boolean.new(true)
+			evaluate(statement.evaluate(environment))
+		when Boolean.new(false)
+			environment
+		end
+	end
+end
+
+class Sequence
+	def evaluate(environment)
+		second.evaluate(first.evaluate(environment))
+	end
+end
+
+statement = Sequence.new(
+				Assign.new(:x, Add.new(Number.new(1), Number.new(1))),
+				Assign.new(:y, Add.new(Variable.new(:x), Number.new(3)))
+			)
+
+statement.evaluate({})
+
+statement2 = While.new(
+				LessThan.new(Variable.new(:x), Number.new(5)),
+				Assign.new(:x, Multiply.new(Variable.new(:x), Number.new(3)))
+			 )
+statement2.evaluate({x: Number.new(1)})
