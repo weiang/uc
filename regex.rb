@@ -1,4 +1,5 @@
 require 'set'
+require 'treetop'
 
 class FARule < Struct.new(:state, :character, :next_state)
 	def applies_to?(state, character)
@@ -260,8 +261,13 @@ class Repeat
 	end
 end
 
-
 Empty.new.matches?('a')
 Literal.new('a').matches?('a')
 pattern.matches?('abb')
 pattern.matches?('aba')
+
+a = Treetop.load('regex')
+parse_tree = a.new.parse('a(|b))*')
+pattern = parse_tree.to_ast
+pattern.matches?('abaab')
+pattern.matches?('abba')
