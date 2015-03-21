@@ -27,12 +27,12 @@ class DFA < Struct.new(:current_state, :accept_states, :rulebook)
 		accept_states.include?(current_state)
 	end
 
-	def read_char(char)
+	def read_character(char)
 		self.current_state = rulebook.next_state(current_state, char)
 	end
 
 	def read_string(string)
-		string.chars.each { |char| read_char(char) }
+		string.chars.each { |char| read_character(char) }
 	end
 end
 
